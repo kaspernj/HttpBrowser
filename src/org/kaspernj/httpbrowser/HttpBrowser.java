@@ -2,7 +2,9 @@ package org.kaspernj.httpbrowser;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
@@ -10,6 +12,7 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 public class HttpBrowser {
 	private HashMap<String, String> args;
@@ -34,6 +37,7 @@ public class HttpBrowser {
 		args.put("port", in_port.toString());
 	}
 	
+	//Connects to the server and sets various variables that will be used.
 	public void connect() throws NumberFormatException, UnknownHostException, IOException{
 		if (args.containsKey("debug") && args.get("debug").equals("1")){
 			doDebug = true;
@@ -47,6 +51,7 @@ public class HttpBrowser {
 		sockIn = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 	}
 	
+	//Closes the connection to the server.
 	public void close() throws Exception{
 		if (sock == null){
 			throw new Exception("Not connect yet.");
@@ -55,6 +60,7 @@ public class HttpBrowser {
 		sock.close();
 	}
 	
+	//Executes a get-request and returns the result.
 	public HttpBrowserResult get(String addr) throws Exception{
 		String requestLine = "GET /" + addr + " HTTP/1.1\r\n";
 		
@@ -79,6 +85,7 @@ public class HttpBrowser {
 		return readResult();
 	}
 	
+	//Reads the result from the server and returns it as a result-object.
 	private HttpBrowserResult readResult() throws Exception{
 		debug("Reading result.\n");
 		
@@ -112,10 +119,20 @@ public class HttpBrowser {
 			throw new Exception("Dont know how to read result from that encoding: '" + tEnc + "'.");
 		}
 		
+		//Decompress the body if it has been compressed with GZip.
+		if (cEnc != null && cEnc.equals("gzip")){
+			byte b[] = body.getBytes();
+			GZIPInputStream gz = new GZIPInputStream(new ByteArrayInputStream(b));
+			
+			//FIXME: Complete GZip decompressing. Had to go to sleep...
+			throw new Exception("Dunno what to do yet :'-(   So sleepy...");
+		}
+		
 		res.setBody(body);
 		return res;
 	}
 	
+	//Reads the header-part of the result from the server and adds those headers to the given HashMap.
 	private void readResultHeaders(HashMap<String, String> headersRec) throws Exception{
 		String line;
 		
@@ -151,6 +168,7 @@ public class HttpBrowser {
 		}
 	}
 	
+	//Reads the body based on continuous content given by chunked encoding until the chunked end-content is given.
 	private String readResultBodyChunked() throws Exception{
 		String body = "";
 		Integer len;
@@ -182,9 +200,9 @@ public class HttpBrowser {
 		return body;
 	}
 	
+	//Reads the body based on the content-length given by headers.
 	private String readResultBodyFromContentLength() throws Exception{
 		String body = "";
-		Integer len;
 		Integer readTotalLength = 0;
 		Integer readLength;
 		char[] partBytes;
@@ -195,11 +213,31 @@ public class HttpBrowser {
 				lengthPerRead = cLength - readTotalLength;
 			}
 			
-			partBytes = new char[lengthPerRead];
-			readLength = sockIn.read(partBytes, readTotalLength, lengthPerRead);
-			readTotalLength += readLength;
+			debug("Trying to read new content of " + lengthPerRead + " bytes. Total length is " + readTotalLength + ". Content-length is " + cLength + ".\n");
 			
-			debug("Adding new body-part: '" + partBytes.toString() + "'.\n");
+			partBytes = new char[lengthPerRead];
+			
+			while(true){
+				try{
+					readLength = sockIn.read(partBytes, 0, lengthPerRead);
+					break;
+				}catch(IndexOutOfBoundsException e){
+					debug("Waiting for content.\n");
+					Thread.sleep(100);
+					//Ignore - content has'nt been received yet.
+				}
+			}
+			
+			if (readLength < 0){
+				throw new Exception("End of buffer was unexpectetly reached.");
+			}
+			
+			readTotalLength += partBytes.length;
+			
+			//We should use the length of part-bytes, since that contains the byte-length and not the string-length.
+			//readTotalLength += readLength;
+			
+			debug("Adding new body-part of " + partBytes.length + " / " + readTotalLength + " bytes: '" + partBytes.toString() + "'.\n");
 			body += partBytes.toString();
 			
 			if (readTotalLength >= cLength){
@@ -211,6 +249,7 @@ public class HttpBrowser {
 		return body;
 	}
 	
+	//Used to write out debugging-messages to stdout if the debug-argument is given.
 	private void debug(String str){
 		if (doDebug){
 			System.out.print(str);
