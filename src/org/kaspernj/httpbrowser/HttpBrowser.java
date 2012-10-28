@@ -47,13 +47,32 @@ public class HttpBrowser {
 	private String tEnc;
 	
 	//If sat to true various debugging messages will be printed to stdout.
-	private Boolean doDebug = false;
+	public Boolean doDebug = false;
 	
 	//If sat to true the object will tell the host, that GZIP compression is supported. Results will automatically be decompressed.
 	private Boolean encodingGZIP = true;
 	
 	//If sat to true the object will tell the host, that chunked transfer-encoding is supported. The result will automatically be decoded.
 	private Boolean transferEncodingChunked = true;
+	
+	//Be sure to close all connections.
+	protected void finalize(){
+		try{
+			if (sockOut != null){
+				sockOut.close();
+			}
+			
+			if (sockIn != null){
+				sockIn.close();
+			}
+			
+			if (sock != null){
+				sock.close();
+			}
+		}catch(IOException e){
+			//ignore.
+		}
+	}
 	
 	//Connects to the server and sets various variables that will be used.
 	public void connect() throws NumberFormatException, UnknownHostException, IOException{
@@ -144,8 +163,15 @@ public class HttpBrowser {
 		return readResult();
 	}
 	
+	public HttpBrowserRequestPostMultipart postMultipart(){
+		HttpBrowserRequestPostMultipart httpReqMp = new HttpBrowserRequestPostMultipart();
+		httpReqMp.setHttpBrowser(this);
+		
+		return httpReqMp;
+	}
+	
 	//Returns default headers based on various options and more.
-	private HashMap<String, String> defaultHeaders(){
+	public HashMap<String, String> defaultHeaders(){
 		HashMap<String, String> headers = new HashMap<String, String>();
 		headers.put("Connection", "Keep-Alive");
 		headers.put("User-Agent", "Mozilla/4.0 (compatible; Java; HttpBrowser)");
@@ -165,7 +191,7 @@ public class HttpBrowser {
 	}
 	
 	//Writes the given headers-HashMap to the socket.
-	private void writeHeaders(HashMap<String, String> headers) throws IOException{
+	public void writeHeaders(HashMap<String, String> headers) throws IOException{
 		for(String key: headers.keySet()){
 			debug("Sending header: " + key + ": " + headers.get(key) + "\n");
 			sockWrite(key + ": " + headers.get(key) + "\r\n");
@@ -173,7 +199,7 @@ public class HttpBrowser {
 	}
 	
 	//Reads the result from the server and returns it as a result-object.
-	private HttpBrowserResult readResult() throws Exception{
+	public HttpBrowserResult readResult() throws Exception{
 		debug("Reading result.\n");
 		
 		HttpBrowserResult res = new HttpBrowserResult();
@@ -343,9 +369,15 @@ public class HttpBrowser {
 	}
 	
 	//Writes the given string to the socket.
-	private void sockWrite(String str) throws IOException{
+	public void sockWrite(String str) throws IOException{
 		debug("Writing string to socket: '" + str + "'.\n");
 		sockOut.write(str.getBytes());
+	}
+	
+	//Writes the given byte-array to the socket.
+	public void sockWrite(byte[] byteArr) throws IOException{
+		debug("Writing string to socket: '" + byteArr.toString() + "'.\n");
+		sockOut.write(byteArr);
 	}
 	
 	//Reads a line from the socket and returns it as a string.

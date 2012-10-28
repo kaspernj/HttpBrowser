@@ -11,11 +11,6 @@ public class TestNormalHttpConnection {
 	@Test
 	public void test() {
 		try{
-			HashMap<String, String> args = new HashMap<String, String>();
-			args.put("host", "partyworm.dk");
-			args.put("port", "80");
-			args.put("debug", "1");
-			
 			System.out.println("Spawning object.");
 			HttpBrowser http = new HttpBrowser();
 			http.setHost("partyworm.dk");
@@ -65,5 +60,4 @@ public class TestNormalHttpConnection {
 			fail(e.getMessage());
 		}
 	}
-
 }
