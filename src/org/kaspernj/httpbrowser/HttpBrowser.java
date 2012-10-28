@@ -6,7 +6,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
+import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,7 +98,54 @@ public class HttpBrowser {
 	//Executes a get-request and returns the result.
 	public HttpBrowserResult get(String addr) throws Exception{
 		String requestLine = "GET /" + addr + " HTTP/1.1\r\n";
+		HashMap<String, String> headers = defaultHeaders();
 		
+		debug("Sending request-line: " + requestLine + "\n");
+		sockWrite(requestLine);
+		writeHeaders(headers);
+		
+		debug("Sending end-of-headers.");
+		sockWrite("\r\n");
+		
+		return readResult();
+	}
+	
+	public HttpBrowserResult post(String addr, HashMap<String, String> postData) throws Exception{
+		Boolean first = true;
+		String postDataStr = "";
+		for(String key: postData.keySet()){
+			if (first){
+				first = false;
+			}else{
+				postDataStr += "&";
+			}
+			
+			postDataStr += encodePostStr(key);
+			postDataStr += "=";
+			postDataStr += encodePostStr(postData.get(key));
+			
+			//postDataStr += URLEncoder.encode(key, "UTF-8");
+			//postDataStr += "=";
+			//postDataStr += URLEncoder.encode(postData.get(key), "UTF-8");
+		}
+		
+		String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
+		sockWrite(requestLine);
+		
+		HashMap<String, String> headers = defaultHeaders();
+		headers.put("Content-Length", String.valueOf(postDataStr.getBytes().length));
+		headers.put("Content-Type", "application/x-www-form-urlencoded");
+		writeHeaders(headers);
+		
+		sockWrite("\r\n");
+		sockWrite(postDataStr);
+		sockWrite("\r\n");
+		
+		return readResult();
+	}
+	
+	//Returns default headers based on various options and more.
+	private HashMap<String, String> defaultHeaders(){
 		HashMap<String, String> headers = new HashMap<String, String>();
 		headers.put("Connection", "Keep-Alive");
 		headers.put("User-Agent", "Mozilla/4.0 (compatible; Java; HttpBrowser)");
@@ -107,18 +156,20 @@ public class HttpBrowser {
 		
 		headers.put("Host", host);
 		
-		debug("Sending request-line: " + requestLine + "\n");
-		sockWrite(requestLine);
-		
+		return headers;
+	}
+	
+	//Encodes a string to be used in a post-request.
+	private String encodePostStr(String str) throws UnsupportedEncodingException{
+		return URLEncoder.encode(str, "UTF-8").replaceAll("\\+", "%20");
+	}
+	
+	//Writes the given headers-HashMap to the socket.
+	private void writeHeaders(HashMap<String, String> headers) throws IOException{
 		for(String key: headers.keySet()){
 			debug("Sending header: " + key + ": " + headers.get(key) + "\n");
 			sockWrite(key + ": " + headers.get(key) + "\r\n");
 		}
-		
-		debug("Sending end-of-headers.");
-		sockWrite("\r\n");
-		
-		return readResult();
 	}
 	
 	//Reads the result from the server and returns it as a result-object.
@@ -156,10 +207,9 @@ public class HttpBrowser {
 			throw new Exception("Dont know how to read result from that encoding: '" + tEnc + "'.");
 		}
 		
-		debug("Converting body to string.");
-		
 		if (cEnc != null && cEnc.equals("gzip")){
 			//Decompress the body if it has been compressed with GZip.
+			debug("Converting body to string from GZip.\n");
 			bodyByteArray = decompressGZIPByteArray(bodyByteArray);
 		}
 		
@@ -294,6 +344,7 @@ public class HttpBrowser {
 	
 	//Writes the given string to the socket.
 	private void sockWrite(String str) throws IOException{
+		debug("Writing string to socket: '" + str + "'.\n");
 		sockOut.write(str.getBytes());
 	}
 	

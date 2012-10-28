@@ -30,7 +30,6 @@ public class TestNormalHttpConnection {
 			HttpBrowserResult res = http.get("multipart_test.php");
 			
 			System.out.println("Validating result.");
-			System.out.println("Got body: " + res.getBody());
 			
 			if (res.getBody().trim().isEmpty()){
 				throw new Exception("The body was empty: " + res.getBody());
@@ -38,10 +37,28 @@ public class TestNormalHttpConnection {
 				throw new Exception("Unexpected result: " + res.getBody());
 			}
 			
-			HttpBrowserResult res2 = http.get("");
-			System.out.println("Got second body: " + res2.getBody());
+			//Test a large request.
+			System.out.println("Getting a large page.");
 			
-			//FIXME Code some validation.
+			HttpBrowserResult res2 = http.get("");
+			String body = res2.getBody();
+			if (!body.contains("<html>") || !body.contains("</html>")){
+				throw new Exception("Body for request didnt contain HTML tags.");
+			}
+			
+			
+			//Test post-request.
+			System.out.println("Testing post-requests.");
+			HashMap<String, String> postData = new HashMap<String, String>();
+			postData.put("test argument 1", "test wee 1");
+			postData.put("test argument 2", "test wee 2");
+			
+			HttpBrowserResult res3 = http.post("multipart_test.php", postData);
+			String expectedStr = "{\"get\":[],\"post\":{\"test_argument_1\":\"test wee 1\",\"test_argument_2\":\"test wee 2\"},\"files\":[],\"files_data\":[]}";
+			
+			if (!res3.getBody().equals(expectedStr)){
+				throw new Exception("Unexpected content when doing a post-request:\n" + res3.getBody() + "\n" + expectedStr);
+			}
 		}catch(Exception e){
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
