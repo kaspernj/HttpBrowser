@@ -6,6 +6,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
@@ -58,12 +60,15 @@ public class HttpBrowserRequestPostMultipart {
 		
 		http.sockWrite("\r\n");
 		
+		http.sockWrite(Files.readAllBytes(Paths.get(tempFile.getAbsolutePath())));
+		
+		/*
 		int fileSize = (int) tempFile.length();
 		int readSize = 0;
 		int curReadSize = 0;
 		int defReadSize = 4096;
 		int actualReadSize = 0;
-		BufferedInputStream input = new BufferedInputStream(new FileInputStream(tempFile));
+		FileInputStream input = new FileInputStream(tempFile);
 		
 		while(readSize < fileSize){
 			curReadSize = (int) (fileSize - readSize);
@@ -75,10 +80,11 @@ public class HttpBrowserRequestPostMultipart {
 			actualReadSize = input.read(buffer, readSize, curReadSize);
 			
 			readSize += actualReadSize;
-			http.sockWrite(new String(buffer));
+			http.sockWrite(buffer);
 			
-			System.out.print(new String(buffer));
+			//System.out.print(new String(buffer));
 		}
+		*/
 		
 		System.out.println("");
 		http.sockWrite("\r\n");
@@ -111,30 +117,45 @@ public class HttpBrowserRequestPostMultipart {
 			fw.write(("Content-Length: " + fileUpload.getFileSize() + "\r\n").getBytes());
 			fw.write(("\r\n").getBytes());
 			
+			byte[] fileBytes = Files.readAllBytes(Paths.get(fileUpload.getFilePath()));
+			fw.write(fileBytes);
+			
+			/*
 			int fileSize = (int) fileUpload.getFileSize();
 			int readSize = 0;
 			int curReadSize = 0;
 			int defReadSize = 4096;
 			int actualReadSize = 0;
-			BufferedInputStream input = new BufferedInputStream(new FileInputStream(fileUpload.getFilePath()));
 			
-			while(readSize < fileSize){
-				curReadSize = (int) (fileSize - readSize);
-				if (curReadSize > defReadSize){
-					curReadSize = defReadSize;
+			try{
+				FileInputStream input = new FileInputStream(fileUpload.getFilePath());
+				System.out.println("Opened file: " + fileUpload.getFilePath() + " which has size " + (new File(fileUpload.getFilePath())).length());
+				
+				while(readSize < fileSize){
+					curReadSize = (int) (fileSize - readSize);
+					if (curReadSize > defReadSize){
+						curReadSize = defReadSize;
+					}
+					
+					System.out.println("Reading another " + curReadSize + " which means " + (readSize + curReadSize) + " of total " + fileSize);
+					
+					byte[] buffer = new byte[curReadSize];
+					actualReadSize = input.read(buffer, readSize, curReadSize);
+					
+					System.out.println("Read " + actualReadSize);
+					
+					readSize += actualReadSize;
+					fw.write(buffer);
 				}
-				
-				byte[] buffer = new byte[curReadSize];
-				actualReadSize = input.read(buffer, readSize, curReadSize);
-				
-				readSize += actualReadSize;
-				fw.write(buffer);
+			}finally{
+				input.close();
 			}
+			*/
 			
 			fw.write(("\r\n").getBytes());
 		}
 		
-		fw.write(("\r\n--" + boundaryStr + "--").getBytes());
+		fw.write(("--" + boundaryStr + "--").getBytes());
 		fw.close();
 		
 		return tempFile;

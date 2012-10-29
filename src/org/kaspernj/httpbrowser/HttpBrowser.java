@@ -16,7 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
-/** This class can connect to HTTP-servers and get results from them. It supports keep-alive, chunked encoding and GZIP compression. */
+/** This class can connect to HTTP-servers and get results from them. It supports keep-alive, chunked encoding, file-uploading and GZIP compression. */
 public class HttpBrowser {
 	//Socket-connection to the host.
 	private Socket sock;

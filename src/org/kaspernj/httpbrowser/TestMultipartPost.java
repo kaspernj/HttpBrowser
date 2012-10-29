@@ -3,6 +3,10 @@ package org.kaspernj.httpbrowser;
 import static org.junit.Assert.*;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 
 import org.junit.Test;
 
@@ -22,12 +26,15 @@ public class TestMultipartPost {
 			http.connect();
 			
 			System.out.println("Generating request.");
+			File curFile = new File(".");
+			
+			
+			
 			
 			HttpBrowserRequestPostMultipart req = http.postMultipart();
 			req.setAddress("multipart_test.php");
 			req.addPost("TestArgument1", "This is a test");
 			
-			File curFile = new File(".");
 			System.out.println("Cur path: " + curFile.getCanonicalPath());
 			
 			HttpBrowserRequestPostMultipartFileUpload fu = req.addFileUpload();
@@ -43,6 +50,28 @@ public class TestMultipartPost {
 			}
 			
 			System.out.println("Body: " + res.getBody());
+			
+			
+			http.setDebug(false);
+			
+			HttpBrowserRequestPostMultipart reqJPEG = http.postMultipart();
+			reqJPEG.setAddress("multipart_test.php?choice=file-test");
+			reqJPEG.addPost("TestArgument1", "This is a test");
+			
+			HttpBrowserRequestPostMultipartFileUpload fuJPEG = reqJPEG.addFileUpload();
+			fuJPEG.setPostName("file");
+			fuJPEG.setFilePath(curFile.getCanonicalPath() + "/src/org/kaspernj/httpbrowser/TestMultipartPostExampleUploadFile.jpeg");
+			fuJPEG.setContextType("text/plain");
+			
+			HttpBrowserResult resJPEG = reqJPEG.execute();
+			byte[] bodyBytes = resJPEG.getBodyAsByteArray();
+			byte[] fileBytes = Files.readAllBytes(Paths.get(curFile.getCanonicalPath() + "/src/org/kaspernj/httpbrowser/TestMultipartPostExampleUploadFile.jpeg"));
+			
+			if (bodyBytes.length != fileBytes.length){
+				throw new Exception("The two byte-arrays did not have the same length: " + bodyBytes.length + ", " + fileBytes.length + "\n\n'" + (new String(bodyBytes)) + "'\n\n'" + (new String(fileBytes)) + "'.");
+			}else if(!Arrays.equals(bodyBytes, fileBytes)){
+				throw new Exception("Expected body byte array to be exactly the same as the original file byte array but it wasnt.");
+			}
 		}catch(Exception e){
 			e.printStackTrace();
 			fail(e.getMessage());
