@@ -1,13 +1,10 @@
 package org.kaspernj.httpbrowser;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
@@ -57,34 +54,15 @@ public class HttpBrowserRequestPostMultipart {
 		headers.put("Content-Length", String.valueOf(tempFile.length()));
 		headers.put("Content-Type", "multipart/form-data; boundary=" + boundaryStr);
 		http.writeHeaders(headers);
-		
 		http.sockWrite("\r\n");
 		
-		http.sockWrite(Files.readAllBytes(Paths.get(tempFile.getAbsolutePath())));
-		
-		/*
-		int fileSize = (int) tempFile.length();
-		int readSize = 0;
-		int curReadSize = 0;
-		int defReadSize = 4096;
-		int actualReadSize = 0;
+		byte[] buffer = new byte[4096];
 		FileInputStream input = new FileInputStream(tempFile);
+		int actualReadSize;
 		
-		while(readSize < fileSize){
-			curReadSize = (int) (fileSize - readSize);
-			if (curReadSize > defReadSize){
-				curReadSize = defReadSize;
-			}
-			
-			byte[] buffer = new byte[curReadSize];
-			actualReadSize = input.read(buffer, readSize, curReadSize);
-			
-			readSize += actualReadSize;
-			http.sockWrite(buffer);
-			
-			//System.out.print(new String(buffer));
+		while((actualReadSize = input.read(buffer)) != -1){
+			http.sockOut.write(buffer, 0, actualReadSize);
 		}
-		*/
 		
 		System.out.println("");
 		http.sockWrite("\r\n");
@@ -103,7 +81,7 @@ public class HttpBrowserRequestPostMultipart {
 			value = postValues.get(key);
 			
 			fw.write(("--" + boundaryStr + "\r\n").getBytes());
-			fw.write(("Content-Disposition: form-data; name=\"" + URLEncoder.encode(key) + "\";\r\n").getBytes());
+			fw.write(("Content-Disposition: form-data; name=\"" + URLEncoder.encode(key, "UTF-8") + "\";\r\n").getBytes());
 			fw.write(("Content-Length: " + value.getBytes().length + "\r\n").getBytes());
 			fw.write(("Content-Type: text/plain\r\n").getBytes());
 			fw.write(("\r\n").getBytes());
@@ -113,44 +91,21 @@ public class HttpBrowserRequestPostMultipart {
 		
 		for(HttpBrowserRequestPostMultipartFileUpload fileUpload: fileUploads){
 			fw.write(("--" + boundaryStr + "\r\n").getBytes());
-			fw.write(("Content-Disposition: form-data; name=\"" + URLEncoder.encode(fileUpload.getPostName()) + "\"; filename=\"" + fileUpload.getFileName() + "\";\r\n").getBytes());
+			fw.write(("Content-Disposition: form-data; name=\"" + URLEncoder.encode(fileUpload.getPostName(), "UTF-8") + "\"; filename=\"" + fileUpload.getFileName() + "\";\r\n").getBytes());
 			fw.write(("Content-Length: " + fileUpload.getFileSize() + "\r\n").getBytes());
 			fw.write(("\r\n").getBytes());
 			
-			byte[] fileBytes = Files.readAllBytes(Paths.get(fileUpload.getFilePath()));
-			fw.write(fileBytes);
-			
-			/*
-			int fileSize = (int) fileUpload.getFileSize();
-			int readSize = 0;
-			int curReadSize = 0;
-			int defReadSize = 4096;
-			int actualReadSize = 0;
+			int actualReadSize;
+			FileInputStream input = new FileInputStream(fileUpload.getFilePath());
+			byte[] buffer = new byte[4096];
 			
 			try{
-				FileInputStream input = new FileInputStream(fileUpload.getFilePath());
-				System.out.println("Opened file: " + fileUpload.getFilePath() + " which has size " + (new File(fileUpload.getFilePath())).length());
-				
-				while(readSize < fileSize){
-					curReadSize = (int) (fileSize - readSize);
-					if (curReadSize > defReadSize){
-						curReadSize = defReadSize;
-					}
-					
-					System.out.println("Reading another " + curReadSize + " which means " + (readSize + curReadSize) + " of total " + fileSize);
-					
-					byte[] buffer = new byte[curReadSize];
-					actualReadSize = input.read(buffer, readSize, curReadSize);
-					
-					System.out.println("Read " + actualReadSize);
-					
-					readSize += actualReadSize;
-					fw.write(buffer);
+				while((actualReadSize = input.read(buffer)) != -1){
+					fw.write(buffer, 0, actualReadSize);
 				}
 			}finally{
 				input.close();
 			}
-			*/
 			
 			fw.write(("\r\n").getBytes());
 		}

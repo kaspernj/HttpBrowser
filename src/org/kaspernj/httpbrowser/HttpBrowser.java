@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
@@ -21,8 +20,8 @@ public class HttpBrowser {
 	//Socket-connection to the host.
 	private Socket sock;
 	
-	//Used to send data to the host.
-	private OutputStream sockOut;
+	//Used to send data to the host. Public because MultipartPost-class is using it.
+	public OutputStream sockOut;
 	
 	//Used to get data from the host.
 	private InputStream sockIn;
@@ -51,9 +50,6 @@ public class HttpBrowser {
 	
 	//If sat to true the object will tell the host, that GZIP compression is supported. Results will automatically be decompressed.
 	private Boolean encodingGZIP = true;
-	
-	//If sat to true the object will tell the host, that chunked transfer-encoding is supported. The result will automatically be decoded.
-	private Boolean transferEncodingChunked = true;
 	
 	//Be sure to close all connections.
 	protected void finalize(){
@@ -96,10 +92,6 @@ public class HttpBrowser {
 		encodingGZIP = inVal;
 	}
 	
-	void setTransferEncodingChunked(Boolean inVal){
-		transferEncodingChunked = inVal;
-	}
-	
 	//If debug-messages should be written to stdout.
 	void setDebug(Boolean inVal){
 		doDebug = inVal;
@@ -139,13 +131,9 @@ public class HttpBrowser {
 				postDataStr += "&";
 			}
 			
-			postDataStr += encodePostStr(key);
+			postDataStr += URLEncoder.encode(key, "UTF-8");
 			postDataStr += "=";
-			postDataStr += encodePostStr(postData.get(key));
-			
-			//postDataStr += URLEncoder.encode(key, "UTF-8");
-			//postDataStr += "=";
-			//postDataStr += URLEncoder.encode(postData.get(key), "UTF-8");
+			postDataStr += URLEncoder.encode(postData.get(key), "UTF-8");
 		}
 		
 		String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
@@ -183,11 +171,6 @@ public class HttpBrowser {
 		headers.put("Host", host);
 		
 		return headers;
-	}
-	
-	//Encodes a string to be used in a post-request.
-	private String encodePostStr(String str) throws UnsupportedEncodingException{
-		return URLEncoder.encode(str, "UTF-8").replaceAll("\\+", "%20");
 	}
 	
 	//Writes the given headers-HashMap to the socket.
