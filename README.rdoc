@@ -50,6 +50,18 @@ This project aims to make a HTTP client library, that is easy to use, remembers 
  HttpBrowser http = new HttpBrowser();
  http.setHost("somehost.com");
  http.setPort(80);
+ 
+ HttpBrowserRequestPostMultipart req = http.postMultipart();
+ req.setAddress("multipart_test.php");
+ req.addPost("TestArgument1", "This is a test");
+ 
+ HttpBrowserRequestPostMultipartFileUpload fileUpload = req.addFileUpload();
+ fileUpload.setPostName("some_file");
+ fileUpload.setFilePath(curFile.getCanonicalPath() + "/somefile.jpeg");
+ fileUpload.setContextType("text/plain");
+ 
+ HttpBrowserResult res = req.execute();
+
 
 == Copyright
 
