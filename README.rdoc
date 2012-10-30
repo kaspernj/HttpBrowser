@@ -1,0 +1,17 @@
+= HttpBrowser
+
+This project aims to make a HTTP client library, that is easy to use, remembers cookies, supports various HTTP features like chunked, GZip compression, multipart post (for fileuploading) and much more.
+
+== Contributing to HttpBrowser
+
+* Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet.
+* Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it.
+* Fork the project.
+* Start a feature/bugfix branch.
+* Commit and push until you are happy with your contribution.
+* Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
+
+
+== Copyright
+
+If you find this project useful, then you are welcome to buy me a beer sometime (I like Radeberger!). You are free to use the code in this project as you want.
