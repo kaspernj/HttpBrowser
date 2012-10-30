@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -30,7 +31,7 @@ public class HttpBrowser {
 	private InputStream sockIn;
 	
 	//Used to extract data from headers.
-	private Pattern patternHeader = Pattern.compile("^(.+)\\s*:\\s*(.+)$");
+	private Pattern patternHeader = Pattern.compile("^(.+?)\\s*:\\s*(.+)$");
 	
 	//Used to extract data from the status-line.
 	private Pattern patternStatusLine = Pattern.compile("^HTTP/1\\.1\\s+(\\d+)\\s+(.+)$");
@@ -40,7 +41,9 @@ public class HttpBrowser {
 	
 	//A string containing the host or IP that should be connected to.
 	private String host;
-	private Integer port;
+	
+	//An integer of what port that should be used (default is 80).
+	private Integer port = 80;
 	
 	//A string containing the content-encoding of the result.
 	private String cEnc;
@@ -60,6 +63,7 @@ public class HttpBrowser {
 	private Pattern patternKeepAliveMax = Pattern.compile("max=(\\d+)");
 	private Pattern patternKeepAliveTimeout = Pattern.compile("timeout=(\\d+)");
 	private Integer requestsExecutedOnCurrectConnection;
+	private ArrayList<HttpBrowserCookie> cookies = new ArrayList<HttpBrowserCookie>();
 	
 	//Be sure to close all connections.
 	protected void finalize(){
@@ -148,6 +152,10 @@ public class HttpBrowser {
 	//If debug-messages should be written to stdout.
 	void setDebug(Boolean inVal){
 		doDebug = inVal;
+	}
+	
+	ArrayList<HttpBrowserCookie> getCookies(){
+		return cookies;
 	}
 	
 	//Closes the connection to the server.
@@ -245,13 +253,32 @@ public class HttpBrowser {
 	}
 	
 	//Returns default headers based on various options and more.
-	public HashMap<String, String> defaultHeaders(){
+	public HashMap<String, String> defaultHeaders() throws UnsupportedEncodingException{
 		HashMap<String, String> headers = new HashMap<String, String>();
 		headers.put("Connection", "Keep-Alive");
 		headers.put("User-Agent", "Mozilla/4.0 (compatible; Java; HttpBrowser)");
 		
 		if (encodingGZIP){
 			headers.put("Accept-Encoding", "gzip");
+		}
+		
+		if (!cookies.isEmpty()){
+			String cstr = "";
+			Boolean first = true;
+			
+			for(HttpBrowserCookie cookie: cookies){
+				if (first){
+					first = false;
+				}else{
+					cstr += "; ";
+				}
+				
+				cstr += URLEncoder.encode(cookie.getName(), "UTF-8");
+				cstr += "=";
+				cstr += URLEncoder.encode(cookie.getValue(), "UTF-8");
+			}
+			
+			headers.put("Cookie", cstr);
 		}
 		
 		headers.put("Host", host);
@@ -286,12 +313,11 @@ public class HttpBrowser {
 		}
 		
 		HashMap<String, String> headersRec = new HashMap<String, String>();
-		
 		debug("Starting to read headers.\n");
 		readResultHeaders(headersRec);
-		res.setHeaders(headersRec);
 		
 		//Set various variables.
+		res.setHeaders(headersRec);
 		res.keepAliveMax = keepaliveMax;
 		res.keepAliveTimeout = keepaliveTimeout;
 		res.contentEncoding = cEnc;
@@ -394,6 +420,13 @@ public class HttpBrowser {
 						}else{
 							debug("Could not match timeout from keepalive header.\n");
 						}
+					}else if(key.equals("set-cookie")){
+						debug("Found set-cookie!\n");
+						
+						HttpBrowserCookie cookie = HttpBrowserCookie.parseFromStr(val);
+						this.addCookie(cookie);
+						
+						debug("New cookie found. Name: '" + cookie.getName() + "', Value: '" + cookie.getValue() + "'.\n");
 					}
 				}else{
 					throw new Exception("Could not match header from line: '" + line + "'.");
@@ -516,5 +549,30 @@ public class HttpBrowser {
 		}
 		
 		return buffer;
+	}
+	
+	public void addCookie(HttpBrowserCookie cookie){
+		try{
+			HttpBrowserCookie existingCookie = this.getCookieByName(cookie.getName());
+			cookies.remove(existingCookie);
+		}catch(NoSuchFieldException e){
+			//Ignore - a cookie with the given name does not exist..
+		}
+		
+		cookies.add(cookie);
+	}
+	
+	public HttpBrowserCookie getCookieByName(String name) throws NoSuchFieldException{
+		ArrayList<String> cookieNames = new ArrayList<String>();
+		
+		for(HttpBrowserCookie cookie: cookies){
+			if (cookie.getName().equals(name)){
+				return cookie;
+			}else{
+				cookieNames.add(cookie.getName());
+			}
+		}
+		
+		throw new NoSuchFieldException("No cookies by that name: '" + name + "' (" + cookieNames.toString() + ").");
 	}
 }
