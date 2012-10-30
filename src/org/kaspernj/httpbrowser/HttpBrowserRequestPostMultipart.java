@@ -17,6 +17,7 @@ public class HttpBrowserRequestPostMultipart {
 	private HttpBrowser http;
 	private ArrayList<HttpBrowserRequestPostMultipartFileUpload> fileUploads = new ArrayList<HttpBrowserRequestPostMultipartFileUpload>();
 	private HashMap<String, String> postValues = new HashMap<String, String>();
+	private Boolean executed = false;
 	
 	public void setHttpBrowser(HttpBrowser inHttp){
 		http = inHttp;
@@ -41,33 +42,46 @@ public class HttpBrowserRequestPostMultipart {
 	}
 	
 	public HttpBrowserResult execute() throws Exception{
-		if (addr == null){
-			throw new Exception("Please set an address before calling 'execute'.");
+		http.lock.lock();
+		
+		try{
+			if (executed){
+				throw new Exception("This request has already been executed.");
+			}
+			
+			executed = true;
+			http.ensureConnected();
+			
+			if (addr == null){
+				throw new Exception("Please set an address before calling 'execute'.");
+			}
+			
+			File tempFile = createTempData();
+			
+			String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
+			http.sockWrite(requestLine);
+			
+			HashMap<String, String> headers = http.defaultHeaders();
+			headers.put("Content-Length", String.valueOf(tempFile.length()));
+			headers.put("Content-Type", "multipart/form-data; boundary=" + boundaryStr);
+			http.writeHeaders(headers);
+			http.sockWrite("\r\n");
+			
+			byte[] buffer = new byte[4096];
+			FileInputStream input = new FileInputStream(tempFile);
+			int actualReadSize;
+			
+			while((actualReadSize = input.read(buffer)) != -1){
+				http.sockOut.write(buffer, 0, actualReadSize);
+			}
+			
+			System.out.println("");
+			http.sockWrite("\r\n");
+			
+			return http.readResult();
+		}finally{
+			http.lock.unlock();
 		}
-		
-		File tempFile = createTempData();
-		
-		String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
-		http.sockWrite(requestLine);
-		
-		HashMap<String, String> headers = http.defaultHeaders();
-		headers.put("Content-Length", String.valueOf(tempFile.length()));
-		headers.put("Content-Type", "multipart/form-data; boundary=" + boundaryStr);
-		http.writeHeaders(headers);
-		http.sockWrite("\r\n");
-		
-		byte[] buffer = new byte[4096];
-		FileInputStream input = new FileInputStream(tempFile);
-		int actualReadSize;
-		
-		while((actualReadSize = input.read(buffer)) != -1){
-			http.sockOut.write(buffer, 0, actualReadSize);
-		}
-		
-		System.out.println("");
-		http.sockWrite("\r\n");
-		
-		return http.readResult();
 	}
 	
 	//Writes a temporary file with the entire post-data (this does not include headers). It is done this way to spare memory and to calculate the size for the "Content-Length"-header.

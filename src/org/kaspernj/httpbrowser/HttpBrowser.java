@@ -8,9 +8,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URLEncoder;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -22,6 +22,9 @@ public class HttpBrowser {
 	
 	//Used to send data to the host. Public because MultipartPost-class is using it.
 	public OutputStream sockOut;
+	
+	//Used for thread safety.
+	public ReentrantLock lock = new ReentrantLock();
 	
 	//Used to get data from the host.
 	private InputStream sockIn;
@@ -51,6 +54,13 @@ public class HttpBrowser {
 	//If sat to true the object will tell the host, that GZIP compression is supported. Results will automatically be decompressed.
 	private Boolean encodingGZIP = true;
 	
+	private Integer keepaliveMax;
+	private Integer keepaliveTimeout;
+	private Integer keepaliveInvalidAfter;
+	private Pattern patternKeepAliveMax = Pattern.compile("max=(\\d+)");
+	private Pattern patternKeepAliveTimeout = Pattern.compile("timeout=(\\d+)");
+	private Integer requestsExecutedOnCurrectConnection;
+	
 	//Be sure to close all connections.
 	protected void finalize(){
 		try{
@@ -71,10 +81,53 @@ public class HttpBrowser {
 	}
 	
 	//Connects to the server and sets various variables that will be used.
-	public void connect() throws NumberFormatException, UnknownHostException, IOException{
-		sock = new Socket(host, port);
-		sockOut = sock.getOutputStream();
-		sockIn = sock.getInputStream();
+	public void connect() throws Exception{
+		lock.lock();
+		
+		try{
+			//Close the connection if already connected to avoid leaking memory.
+			if (isConnected()){
+				close();
+			}
+			
+			debug("Connecting.\n");
+			sock = new Socket(host, port);
+			sockOut = sock.getOutputStream();
+			sockIn = sock.getInputStream();
+			
+			requestsExecutedOnCurrectConnection = 0;
+		}finally{
+			lock.unlock();
+		}
+	}
+	
+	//Returns true if the socket is successfully connected. Otherwise false.
+	public boolean isConnected(){
+		lock.lock();
+		
+		try{
+			if (sock == null || sockOut == null || sockIn == null || sock.isClosed() || !sock.isConnected() || sock.isInputShutdown() || sock.isOutputShutdown()){
+				debug("The socket-objects has not been created or something is wrong with them.\n");
+				return false;
+			}else if(keepaliveInvalidAfter != null && keepaliveInvalidAfter <= System.currentTimeMillis()){
+				debug("Too much time has passed according to the keep-alive-max - the connection has been closed by the host.\n");
+				return false;
+			}else if (keepaliveMax != null && keepaliveMax >= requestsExecutedOnCurrectConnection){
+				debug("We have made the maximum number of requests per connection and should reconnect.\n");
+				return false;
+			}
+			
+			return true;
+		}finally{
+			lock.unlock();
+		}
+	}
+	
+	//Connects to the host if not already connected.
+	public void ensureConnected() throws Exception{
+		if (!isConnected()){
+			connect();
+		}
 	}
 	
 	//Sets the hostname or IP that the object should connect to.
@@ -99,56 +152,89 @@ public class HttpBrowser {
 	
 	//Closes the connection to the server.
 	public void close() throws Exception{
-		if (sock == null){
-			throw new Exception("Not connect yet.");
-		}
+		lock.lock();
 		
-		sock.close();
+		try{
+			debug("Closing connection.\n");
+			
+			if (sockIn != null){
+				sockIn.close();
+			}
+			
+			if (sockOut != null){
+				sockOut.close();
+			}
+			
+			if (sock != null){
+				sock.close();
+			}
+			
+			requestsExecutedOnCurrectConnection = null;
+			keepaliveInvalidAfter = null;
+		}finally{
+			lock.unlock();
+		}
 	}
 	
 	//Executes a get-request and returns the result.
 	public HttpBrowserResult get(String addr) throws Exception{
-		String requestLine = "GET /" + addr + " HTTP/1.1\r\n";
-		HashMap<String, String> headers = defaultHeaders();
+		lock.lock();
 		
-		debug("Sending request-line: " + requestLine + "\n");
-		sockWrite(requestLine);
-		writeHeaders(headers);
-		
-		debug("Sending end-of-headers.");
-		sockWrite("\r\n");
-		
-		return readResult();
+		try{
+			ensureConnected();
+			
+			String requestLine = "GET /" + addr + " HTTP/1.1\r\n";
+			HashMap<String, String> headers = defaultHeaders();
+			
+			debug("Sending request-line: " + requestLine + "\n");
+			sockWrite(requestLine);
+			writeHeaders(headers);
+			
+			debug("Sending end-of-headers.\n");
+			sockWrite("\r\n");
+			
+			return readResult();
+		}finally{
+			lock.unlock();
+		}
 	}
 	
 	public HttpBrowserResult post(String addr, HashMap<String, String> postData) throws Exception{
-		Boolean first = true;
-		String postDataStr = "";
-		for(String key: postData.keySet()){
-			if (first){
-				first = false;
-			}else{
-				postDataStr += "&";
+		lock.lock();
+		
+		try{
+			ensureConnected();
+			
+			Boolean first = true;
+			String postDataStr = "";
+			for(String key: postData.keySet()){
+				if (first){
+					first = false;
+				}else{
+					postDataStr += "&";
+				}
+				
+				postDataStr += URLEncoder.encode(key, "UTF-8");
+				postDataStr += "=";
+				postDataStr += URLEncoder.encode(postData.get(key), "UTF-8");
 			}
 			
-			postDataStr += URLEncoder.encode(key, "UTF-8");
-			postDataStr += "=";
-			postDataStr += URLEncoder.encode(postData.get(key), "UTF-8");
+			String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
+			sockWrite(requestLine);
+			
+			HashMap<String, String> headers = defaultHeaders();
+			headers.put("Content-Length", String.valueOf(postDataStr.getBytes().length));
+			headers.put("Content-Type", "application/x-www-form-urlencoded");
+			writeHeaders(headers);
+			
+			sockWrite("\r\n");
+			sockWrite(postDataStr);
+			sockWrite("\r\n");
+			
+			return readResult();
+		}finally{
+			lock.unlock();
 		}
-		
-		String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
-		sockWrite(requestLine);
-		
-		HashMap<String, String> headers = defaultHeaders();
-		headers.put("Content-Length", String.valueOf(postDataStr.getBytes().length));
-		headers.put("Content-Type", "application/x-www-form-urlencoded");
-		writeHeaders(headers);
-		
-		sockWrite("\r\n");
-		sockWrite(postDataStr);
-		sockWrite("\r\n");
-		
-		return readResult();
 	}
 	
 	public HttpBrowserRequestPostMultipart postMultipart(){
@@ -189,6 +275,8 @@ public class HttpBrowser {
 		cLength = null;
 		cEnc = null;
 		tEnc = null;
+		keepaliveMax = null;
+		keepaliveTimeout = null;
 		
 		String statusLine = sockReadLine().trim();
 		Matcher matcherStatusLine = patternStatusLine.matcher(statusLine);
@@ -202,6 +290,12 @@ public class HttpBrowser {
 		debug("Starting to read headers.\n");
 		readResultHeaders(headersRec);
 		res.setHeaders(headersRec);
+		
+		//Set various variables.
+		res.keepAliveMax = keepaliveMax;
+		res.keepAliveTimeout = keepaliveTimeout;
+		res.contentEncoding = cEnc;
+		res.transferEncoding = tEnc;
 		
 		byte[] bodyByteArray;
 		
@@ -223,6 +317,8 @@ public class HttpBrowser {
 		}
 		
 		res.setBodyByteArray(bodyByteArray);
+		requestsExecutedOnCurrectConnection += 1;
+		
 		return res;
 	}
 	
@@ -278,6 +374,26 @@ public class HttpBrowser {
 						cEnc = val.toLowerCase().trim();
 					}else if(key.equals("transfer-encoding")){
 						tEnc = val.toLowerCase().trim();
+					}else if(key.equals("keep-alive")){
+						Matcher matchMax = patternKeepAliveMax.matcher(val);
+						if (matchMax.find()){
+							debug("New keepalive max: " + matchMax.group(1) + "\n");
+							keepaliveMax = Integer.parseInt(matchMax.group(1));
+						}else{
+							debug("Could not match max from keepalive header.\n");
+						}
+						
+						Matcher matchTimeout = patternKeepAliveTimeout.matcher(val);
+						if (matchTimeout.find()){
+							debug("New keepalive timeout: " + matchTimeout.group(1) + "\n");
+							keepaliveTimeout = Integer.parseInt(matchTimeout.group(1));
+							
+							debug("Time millis: " + System.currentTimeMillis() + "\n");
+							debug("Invalid millis: " + (System.currentTimeMillis() + (keepaliveTimeout * 1000)) + "\n");
+							keepaliveInvalidAfter = (int) System.currentTimeMillis() + (keepaliveTimeout * 1000);
+						}else{
+							debug("Could not match timeout from keepalive header.\n");
+						}
 					}
 				}else{
 					throw new Exception("Could not match header from line: '" + line + "'.");
@@ -370,6 +486,10 @@ public class HttpBrowser {
 		
 		while(true){
 			chInt = sockIn.read();
+			if (chInt == -1){
+				throw new IOException("Socket seems to have closed on us?");
+			}
+			
 			sb.append((char) chInt);
 			
 			if (chInt == 10){

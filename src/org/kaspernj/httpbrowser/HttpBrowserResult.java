@@ -6,6 +6,10 @@ import java.util.HashMap;
 public class HttpBrowserResult {
 	private byte[] bodyByteArray;
 	private HashMap<String, String> headers;
+	public Integer keepAliveTimeout;
+	public Integer keepAliveMax;
+	public String contentEncoding;
+	public String transferEncoding;
 	
 	//Sets the body-byte-array.
 	public void setBodyByteArray(byte[] inBody){
