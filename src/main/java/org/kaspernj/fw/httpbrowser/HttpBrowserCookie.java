@@ -1,4 +1,4 @@
-package org.kaspernj.httpbrowser;
+package org.kaspernj.fw.httpbrowser;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

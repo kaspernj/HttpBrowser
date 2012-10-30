@@ -1,4 +1,4 @@
-package org.kaspernj.httpbrowser;
+package org.kaspernj.fw.httpbrowser;
 
 import java.io.File;
 

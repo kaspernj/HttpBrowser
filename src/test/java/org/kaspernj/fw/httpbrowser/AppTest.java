@@ -1,33 +1,39 @@
-package org.kaspernj.httpbrowser;
+package org.kaspernj.fw.httpbrowser;
 
-import static org.junit.Assert.*;
+import junit.framework.Test;
+import junit.framework.TestCase;
+import junit.framework.TestSuite;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.junit.Test;
+/**
+ * Unit test for simple App.
+ */
+public class AppTest 
+    extends TestCase
+{
+    /**
+     * Create the test case
+     *
+     * @param testName name of the test case
+     */
+    public AppTest( String testName )
+    {
+        super( testName );
+    }
 
-public class TestNormalHttpConnection {
+    /**
+     * @return the suite of tests being tested
+     */
+    public static Test suite()
+    {
+        return new TestSuite( AppTest.class );
+    }
 
-	@Test
-	public void test() {
-		try{
-			//testGetRequests();
-			//testPostRequest();
-			//testKeepAliveTimeout();
-			//testMultipleForKeepAlive();
-			//testThreadSafety();
-			testCookies();
-		}catch(Exception e){
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	public void testGetRequests() throws Exception{
+    public void testGetRequests() throws Exception{
 		System.out.println("Spawning object.");
 		HttpBrowser http = new HttpBrowser();
 		http.setHost("partyworm.dk");
