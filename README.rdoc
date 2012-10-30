@@ -12,6 +12,45 @@ This project aims to make a HTTP client library, that is easy to use, remembers 
 * Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
 
 
+== Making GET-requests
+
+ import org.kaspernj.fw.*;
+ 
+ HttpBrowser http = new HttpBrowser();
+ http.setHost("somehost.com");
+ http.setPort(80);
+ HttpBrowserResult res = http.get("some_file.jsp");
+
+== Getting various data from results
+ System.out.println(http.cookies);
+ System.out.println(res.getBodyAsString());
+ 
+ HashMap<String, String> headers = res.getHeaders();
+
+
+== Making normal POST-requests.
+
+ import org.kaspernj.fw.*;
+ 
+ HttpBrowser http = new HttpBrowser();
+ http.setHost("somehost.com");
+ http.setPort(80);
+ 
+ HashMap<String, String> postData = new HashMap<String, String>();
+ postData.put("test argument 1", "test wee 1");
+ postData.put("test argument 2", "test wee 2");
+ 
+ HttpBrowserResult res = http.post("multipart_test.php", postData);
+
+
+== Doing file uploading
+
+ import org.kaspernj.fw.*;
+ 
+ HttpBrowser http = new HttpBrowser();
+ http.setHost("somehost.com");
+ http.setPort(80);
+
 == Copyright
 
 If you find this project useful, then you are welcome to buy me a beer sometime (I like Radeberger!). You are free to use the code in this project as you want.
