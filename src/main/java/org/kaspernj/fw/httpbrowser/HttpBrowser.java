@@ -135,26 +135,26 @@ public class HttpBrowser {
 	}
 	
 	//Sets the hostname or IP that the object should connect to.
-	void setHost(String inHost){
+	public void setHost(String inHost){
 		host = inHost;
 	}
 	
 	//Sets the port that should be used for the connection.
-	void setPort(Integer inPort){
+	public void setPort(Integer inPort){
 		port = inPort;
 	}
 	
 	//If GZIP compression should be used for the request.
-	void setEncodingGZIP(Boolean inVal){
+	public void setEncodingGZIP(Boolean inVal){
 		encodingGZIP = inVal;
 	}
 	
 	//If debug-messages should be written to stdout.
-	void setDebug(Boolean inVal){
+	public void setDebug(Boolean inVal){
 		doDebug = inVal;
 	}
 	
-	ArrayList<HttpBrowserCookie> getCookies(){
+	public ArrayList<HttpBrowserCookie> getCookies(){
 		return cookies;
 	}
 	
@@ -452,7 +452,7 @@ public class HttpBrowser {
 			//This will happen when there is no more content to be received.
 			if (len == 0){
 				line = sockReadLine();
-				if (line.equals("\r\n")){
+				if (line.equals("\r\n") || line.equals("\n")){
 					break;
 				}else{
 					throw new Exception("Expected empty read: '" + debugStr(line) + "'.\n");
@@ -466,7 +466,7 @@ public class HttpBrowser {
 			debug("Received part of " + part.length + ".\n");
 			
 			line = sockReadLine();
-			if (!line.equals("\r\n")){
+			if (!line.equals("\r\n") && !line.equals( "\n" )){
 				throw new Exception("Expected newline: '" + debugStr(line) + "'.\n");
 			}
 		}

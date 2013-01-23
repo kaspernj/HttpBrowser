@@ -43,6 +43,7 @@ public class HttpBrowserRequestPostMultipart {
 	
 	public HttpBrowserResult execute() throws Exception{
 		http.lock.lock();
+		File tempFile = createTempData();
 		
 		try{
 			if (executed){
@@ -55,8 +56,6 @@ public class HttpBrowserRequestPostMultipart {
 			if (addr == null){
 				throw new Exception("Please set an address before calling 'execute'.");
 			}
-			
-			File tempFile = createTempData();
 			
 			String requestLine = "POST /" + addr + " HTTP/1.1\r\n";
 			http.sockWrite(requestLine);
@@ -80,6 +79,7 @@ public class HttpBrowserRequestPostMultipart {
 			
 			return http.readResult();
 		}finally{
+			tempFile.delete();
 			http.lock.unlock();
 		}
 	}
