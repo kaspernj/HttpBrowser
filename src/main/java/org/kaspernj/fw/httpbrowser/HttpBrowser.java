@@ -70,18 +70,8 @@ public class HttpBrowser {
 	//Be sure to close all connections.
 	protected void finalize(){
 		try{
-			if (sockOut != null){
-				sockOut.close();
-			}
-			
-			if (sockIn != null){
-				sockIn.close();
-			}
-			
-			if (sock != null){
-				sock.close();
-			}
-		}catch(IOException e){
+			this.close( );
+		}catch(Exception e){
 			//ignore.
 		}
 	}
@@ -168,19 +158,28 @@ public class HttpBrowser {
 		try{
 			debug("Closing connection.\n");
 			
-			if (sockIn != null){
-				sockIn.close();
+			try{
+				if (sockIn != null){
+					sockIn.close();
+				}
+			}finally{
 				sockIn = null;
-			}
-			
-			if (sockOut != null){
-				sockOut.close();
-				sockOut = null;
-			}
-			
-			if (sock != null){
-				sock.close();
-				sock = null;
+				
+				try{
+					if (sockOut != null){
+						sockOut.close();
+					}
+				}finally{
+					sockOut = null;
+					
+					try{
+						if (sock != null){
+							sock.close();
+						}
+					}finally{
+						sock = null;
+					}
+				}
 			}
 			
 			requestsExecutedOnCurrectConnection = null;
