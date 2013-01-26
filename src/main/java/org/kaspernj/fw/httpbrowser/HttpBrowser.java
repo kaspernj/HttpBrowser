@@ -312,6 +312,8 @@ public class HttpBrowser {
 			throw new Exception("Could not understand the status-line: " + statusLine);
 		}
 		
+		res.setStatusCode(Integer.parseInt( matcherStatusLine.group(1) ) );
+		
 		HashMap<String, String> headersRec = new HashMap<String, String>();
 		debug("Starting to read headers.\n");
 		readResultHeaders(headersRec);

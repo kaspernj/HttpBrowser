@@ -6,6 +6,7 @@ import java.util.HashMap;
 public class HttpBrowserResult {
 	private byte[] bodyByteArray;
 	private HashMap<String, String> headers;
+	private Integer statusCode;
 	public Integer keepAliveTimeout;
 	public Integer keepAliveMax;
 	public String contentEncoding;
@@ -34,5 +35,14 @@ public class HttpBrowserResult {
 	//Returns the HashMap containing the headers of the result.
 	public HashMap<String, String> getHeaders(){
 		return headers;
+	}
+
+	public void setStatusCode( int statusCode )
+	{
+		this.statusCode = statusCode;
+	}
+	
+	public int getStatusCode(){
+		return this.statusCode;
 	}
 }
