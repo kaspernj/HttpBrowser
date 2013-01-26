@@ -96,6 +96,7 @@ public class AppTest extends TestCase
 		http.setPort(80);
 		http.setDebug(true);
 		http.setEncodingGZIP(true);
+		http.setDebug( false );
 		http.connect();
 		
 		HttpBrowserResult resFirst = http.get("robots.txt");

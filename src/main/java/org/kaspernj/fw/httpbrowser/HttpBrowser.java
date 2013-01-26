@@ -9,7 +9,9 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
@@ -59,7 +61,7 @@ public class HttpBrowser {
 	
 	private Integer keepaliveMax;
 	private Integer keepaliveTimeout;
-	private Integer keepaliveInvalidAfter;
+	private Long keepaliveInvalidAfter;
 	private Pattern patternKeepAliveMax = Pattern.compile("max=(\\d+)");
 	private Pattern patternKeepAliveTimeout = Pattern.compile("timeout=(\\d+)");
 	private Integer requestsExecutedOnCurrectConnection;
@@ -86,13 +88,12 @@ public class HttpBrowser {
 	
 	//Connects to the server and sets various variables that will be used.
 	public void connect() throws Exception{
+		debug( "Connecting.\n" );
 		lock.lock();
 		
 		try{
 			//Close the connection if already connected to avoid leaking memory.
-			if (isConnected()){
-				close();
-			}
+			close();
 			
 			debug("Connecting.\n");
 			sock = new Socket(host, port);
@@ -114,10 +115,12 @@ public class HttpBrowser {
 				debug("The socket-objects has not been created or something is wrong with them.\n");
 				return false;
 			}else if(keepaliveInvalidAfter != null && keepaliveInvalidAfter <= System.currentTimeMillis()){
-				debug("Too much time has passed according to the keep-alive-max - the connection has been closed by the host.\n");
+				SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				Date date = new Date(keepaliveInvalidAfter);
+				debug("Too much time has passed according to the keep-alive-max (" + keepaliveInvalidAfter + ", " + format.format( date ) + ") - the connection has been closed by the host.\n");
 				return false;
-			}else if (keepaliveMax != null && keepaliveMax >= requestsExecutedOnCurrectConnection){
-				debug("We have made the maximum number of requests per connection and should reconnect.\n");
+			}else if (keepaliveMax != null && requestsExecutedOnCurrectConnection >= keepaliveMax){
+				debug("We have made the maximum number of requests per connection and should reconnect (keep-alive-max: " + keepaliveMax + ", requests-executed: " + requestsExecutedOnCurrectConnection + ".\n");
 				return false;
 			}
 			
@@ -167,14 +170,17 @@ public class HttpBrowser {
 			
 			if (sockIn != null){
 				sockIn.close();
+				sockIn = null;
 			}
 			
 			if (sockOut != null){
 				sockOut.close();
+				sockOut = null;
 			}
 			
 			if (sock != null){
 				sock.close();
+				sock = null;
 			}
 			
 			requestsExecutedOnCurrectConnection = null;
@@ -418,7 +424,7 @@ public class HttpBrowser {
 							
 							debug("Time millis: " + System.currentTimeMillis() + "\n");
 							debug("Invalid millis: " + (System.currentTimeMillis() + (keepaliveTimeout * 1000)) + "\n");
-							keepaliveInvalidAfter = (int) System.currentTimeMillis() + (keepaliveTimeout * 1000);
+							keepaliveInvalidAfter = System.currentTimeMillis() + (keepaliveTimeout * 1000);
 						}else{
 							debug("Could not match timeout from keepalive header.\n");
 						}
