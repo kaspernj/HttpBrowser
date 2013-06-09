@@ -18,25 +18,25 @@ import java.util.regex.Pattern;
  */
 public class AppTest extends TestCase
 {
-    /**
-     * Create the test case
-     *
-     * @param testName name of the test case
-     */
-    public AppTest( String testName )
-    {
-        super( testName );
-    }
+  /**
+   * Create the test case
+   *
+   * @param testName name of the test case
+   */
+  public AppTest( String testName )
+  {
+      super( testName );
+  }
 
-    /**
-     * @return the suite of tests being tested
-     */
-    public static Test suite()
-    {
-        return new TestSuite( AppTest.class );
-    }
+  /**
+   * @return the suite of tests being tested
+   */
+  public static Test suite()
+  {
+      return new TestSuite( AppTest.class );
+  }
 
-    public void testGetRequests() throws Exception{
+  public void testGetRequests() throws Exception{
 		System.out.println("Spawning object.");
 		HttpBrowser http = new HttpBrowser();
 		http.setHost("partyworm.dk");
@@ -94,7 +94,7 @@ public class AppTest extends TestCase
 		HttpBrowser http = new HttpBrowser();
 		http.setHost("partyworm.dk");
 		http.setPort(80);
-		http.setDebug(true);
+		http.setDebug(false);
 		http.setEncodingGZIP(true);
 		http.setDebug( false );
 		http.connect();
@@ -112,7 +112,7 @@ public class AppTest extends TestCase
 		HttpBrowser http = new HttpBrowser();
 		http.setHost("partyworm.dk");
 		http.setPort(80);
-		http.setDebug(true);
+		http.setDebug(false);
 		http.setEncodingGZIP(true);
 		http.connect();
 		
@@ -164,31 +164,12 @@ public class AppTest extends TestCase
 	
 	public void testCookies() throws Exception{
 		HttpBrowser http = new HttpBrowser();
-		http.setHost("www.sc2replays.dk");
+		http.setHost("www.google.com");
 		http.setDebug(true);
 		
 		HttpBrowserResult res = http.get("");
-		HttpBrowserCookie cookie = http.getCookieByName("HayabusaSession");
+		HttpBrowserCookie cookie = http.getCookieByName("NID");
 		String cookieValue = cookie.getValue();
-		
-		Pattern patternValidCookie = Pattern.compile("^[A-z0-9]+$");
-		Matcher matcherValidCookie = patternValidCookie.matcher(cookie.getValue());
-		
-		if (!matcherValidCookie.find()){
-			throw new Exception("Unexpected content in cookie: '" + cookie.getValue() + "'.");
-		}
-		
-		HttpBrowserResult res2 = http.get("");
-		HttpBrowserCookie cookie2 = http.getCookieByName("HayabusaSession");
-		String cookieValue2 = cookie2.getValue();
-		
-		if (!cookieValue.equals(cookieValue2)){
-			throw new Exception("Expected cookie-values to be the same: '" + cookieValue + "', '" + cookieValue2 + "'.");
-		}else{
-			System.out.println("Cookies are the same (" + http.getCookies().toString() + ").");
-			System.out.println("Cookie1: " + cookieValue);
-			System.out.println("Cookie2: " + cookieValue2);
-		}
 	}
 	
 	public void testPostMultipart() throws Exception{
