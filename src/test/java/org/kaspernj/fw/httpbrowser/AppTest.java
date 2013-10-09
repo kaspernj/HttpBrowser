@@ -231,4 +231,30 @@ public class AppTest extends TestCase
 			throw new Exception("Expected body byte array to be exactly the same as the original file byte array but it wasnt.");
 		}
 	}
+	
+	public void testRedirectFullURL() throws Exception{
+		HttpBrowser http = new HttpBrowser();
+		http.setHost("www.partyworm.dk");
+		http.setPort(80);
+		http.setDebug(false);
+		http.setEncodingGZIP(true);
+		http.setFollowRedirects(true);
+		
+		HttpBrowserResult res = http.get("?show=users_online");
+		
+		assertEquals("http://partyworm.dk/?", res.getRedirectedTo());
+	}
+	
+	public void testRedirectPath() throws Exception{
+		HttpBrowser http = new HttpBrowser();
+		http.setHost("partyworm.dk");
+		http.setPort(80);
+		http.setDebug(false);
+		http.setEncodingGZIP(true);
+		http.setFollowRedirects(true);
+		
+		HttpBrowserResult res = http.get("?show=users_online&valg=dologout");
+		
+		assertEquals("index.php?show=users_online", res.getRedirectedTo());
+	}
 }

@@ -11,6 +11,8 @@ public class HttpBrowserResult {
 	public Integer keepAliveMax;
 	public String contentEncoding;
 	public String transferEncoding;
+	public String redirectedTo;
+	public HttpBrowser httpBrowserUsed;
 	
 	//Sets the body-byte-array.
 	public void setBodyByteArray(byte[] inBody){
@@ -36,13 +38,20 @@ public class HttpBrowserResult {
 	public HashMap<String, String> getHeaders(){
 		return headers;
 	}
-
-	public void setStatusCode( int statusCode )
-	{
+	
+	public void setStatusCode(int statusCode){
 		this.statusCode = statusCode;
 	}
 	
 	public int getStatusCode(){
 		return this.statusCode;
+	}
+	
+	public HttpBrowser getHttpBrowserUsed(){
+		return this.httpBrowserUsed;
+	}
+	
+	public String getRedirectedTo(){
+		return redirectedTo;
 	}
 }

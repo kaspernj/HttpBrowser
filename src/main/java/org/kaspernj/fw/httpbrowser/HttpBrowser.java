@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,7 +38,7 @@ public class HttpBrowser {
 	private Pattern patternHeader = Pattern.compile("^(.+?)\\s*:\\s*(.+)$");
 	
 	//Used to extract data from the status-line.
-	private Pattern patternStatusLine = Pattern.compile("^HTTP/1\\.1\\s+(\\d+)\\s+(.+)$");
+	private Pattern patternStatusLine = Pattern.compile("^HTTP/1\\.(\\d+)\\s+(\\d+)\\s+(.+)$");
 	
 	//Given by headers and used to read data if we know the exact length.
 	private Integer cLength;
@@ -66,6 +68,7 @@ public class HttpBrowser {
 	private Pattern patternKeepAliveTimeout = Pattern.compile("timeout=(\\d+)");
 	private Integer requestsExecutedOnCurrectConnection;
 	private ArrayList<HttpBrowserCookie> cookies = new ArrayList<HttpBrowserCookie>();
+	private Boolean followRedirects = true;
 	
 	//Be sure to close all connections.
 	protected void finalize(){
@@ -145,6 +148,10 @@ public class HttpBrowser {
 	//If debug-messages should be written to stdout.
 	public void setDebug(Boolean inVal){
 		doDebug = inVal;
+	}
+	
+	public void setFollowRedirects(Boolean inVal){
+		followRedirects = inVal;
 	}
 	
 	public ArrayList<HttpBrowserCookie> getCookies(){
@@ -304,6 +311,7 @@ public class HttpBrowser {
 		debug("Reading result.\n");
 		
 		HttpBrowserResult res = new HttpBrowserResult();
+		res.httpBrowserUsed = this;
 		cLength = null;
 		cEnc = null;
 		tEnc = null;
@@ -317,7 +325,7 @@ public class HttpBrowser {
 			throw new Exception("Could not understand the status-line: " + statusLine);
 		}
 		
-		res.setStatusCode(Integer.parseInt( matcherStatusLine.group(1) ) );
+		res.setStatusCode(Integer.parseInt( matcherStatusLine.group(2) ) );
 		
 		HashMap<String, String> headersRec = new HashMap<String, String>();
 		debug("Starting to read headers.\n");
@@ -352,7 +360,42 @@ public class HttpBrowser {
 		res.setBodyByteArray(bodyByteArray);
 		requestsExecutedOnCurrectConnection += 1;
 		
+		if (followRedirects && res.getStatusCode() == 302){
+			String location = res.getHeaders().get("location");
+			return followRedirect(location);
+		}
+		
 		return res;
+	}
+	
+	private HttpBrowserResult followRedirect(String location) throws Exception{
+		try {
+			URL url = new URL(location);
+			
+			HttpBrowser http = new HttpBrowser();
+			http.setHost(url.getHost());
+			if (url.getPort() != -1) http.setPort(url.getPort());
+			
+			String fullPath = url.getPath();
+			if (url.getQuery() != null) fullPath += "?" + url.getQuery();
+			
+			http.connect();
+			
+			try{
+				HttpBrowserResult res = http.get(fullPath);
+				res.redirectedTo = location;
+				res.httpBrowserUsed = http;
+				
+				return res;
+			}finally{
+				http.close();
+			}
+		} catch (MalformedURLException e) {
+			HttpBrowserResult res = get(location);
+			res.redirectedTo = location;
+			
+			return res;
+		}
 	}
 	
 	//Decompresses a GZIP byte-array and returns the orignal uncompress byte-array.
